@@ -1,0 +1,13 @@
+{
+  "/api/admin/orders/route": "app/api/admin/orders/route.js",
+  "/api/admin/orders/[id]/route": "app/api/admin/orders/[id]/route.js",
+  "/api/admin/products/[id]/route": "app/api/admin/products/[id]/route.js",
+  "/api/admin/products/route": "app/api/admin/products/route.js",
+  "/api/auth/route": "app/api/auth/route.js",
+  "/api/orders/[id]/route": "app/api/orders/[id]/route.js",
+  "/api/orders/route": "app/api/orders/route.js",
+  "/api/payments/route": "app/api/payments/route.js",
+  "/api/products/[slug]/route": "app/api/products/[slug]/route.js",
+  "/api/products/route": "app/api/products/route.js",
+  "/api/upload/route": "app/api/upload/route.js"
+}
