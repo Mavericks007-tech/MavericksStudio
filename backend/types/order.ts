@@ -1,15 +1,8 @@
 import { ProductSize } from './product';
 
-export type OrderStatus =
-  | 'pending'
-  | 'payment_confirmed'
-  | 'processing'
-  | 'shipped'
-  | 'delivered'
-  | 'cancelled'
-  | 'refunded';
+export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered';
 
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
+export type OrderPaymentStatus = 'unpaid' | 'pending_verification' | 'paid';
 
 export interface OrderItem {
   product_id: string;
@@ -17,7 +10,7 @@ export interface OrderItem {
   product_image: string;
   size: ProductSize;
   quantity: number;
-  unit_price: number;   // in pence at time of order
+  unit_price: number;
   total_price: number;
 }
 
@@ -37,12 +30,12 @@ export interface Order {
   user_id: string;
   items: OrderItem[];
   shipping_address: ShippingAddress;
-  subtotal: number;       // in pence
-  shipping_cost: number;  // in pence
-  discount: number;       // in pence
-  total: number;          // in pence
-  status: OrderStatus;
-  payment_status: PaymentStatus;
+  subtotal: number;
+  shipping_cost: number;
+  discount: number;
+  total_price: number;
+  order_status: OrderStatus;
+  payment_status: OrderPaymentStatus;
   tracking_number?: string;
   notes?: string;
   created_at: string;
@@ -60,6 +53,6 @@ export interface CreateOrderInput {
 }
 
 export interface UpdateOrderStatusInput {
-  status: OrderStatus;
+  order_status: OrderStatus;
   tracking_number?: string;
 }

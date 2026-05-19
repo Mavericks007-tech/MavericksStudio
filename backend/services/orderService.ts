@@ -12,8 +12,6 @@ import {
 } from '../types/order';
 
 export class OrderService {
-  // ── Customer ─────────────────────────────────────────────────────────────
-
   async placeOrder(userId: string, input: CreateOrderInput): Promise<Order> {
     this.validateOrderInput(input);
     return createOrder(userId, input);
@@ -29,10 +27,8 @@ export class OrderService {
     return order;
   }
 
-  // ── Admin ─────────────────────────────────────────────────────────────────
-
-  async listAllOrders(page = 1, limit = 20, status?: string) {
-    return getAllOrders(page, limit, status);
+  async listAllOrders(page = 1, limit = 20, orderStatus?: string) {
+    return getAllOrders(page, limit, orderStatus);
   }
 
   async getOrderAdmin(orderId: string): Promise<Order> {
@@ -47,15 +43,12 @@ export class OrderService {
   ): Promise<Order> {
     const existing = await this.getOrderAdmin(orderId);
 
-    // Guard: can't update a cancelled/refunded order
-    if (['cancelled', 'refunded'].includes(existing.status)) {
-      throw new Error(`Cannot update a ${existing.status} order`);
+    if (existing.order_status === 'delivered') {
+      throw new Error('Cannot update a delivered order');
     }
 
     return updateOrderStatus(orderId, input);
   }
-
-  // ── Validation ────────────────────────────────────────────────────────────
 
   private validateOrderInput(input: CreateOrderInput): void {
     if (!input.items?.length) throw new Error('Order must contain at least one item');

@@ -7,9 +7,8 @@ import {
   OrderItem,
 } from '../types/order';
 
-const SHIPPING_COST_PENCE = 499; // £4.99 flat rate
+const SHIPPING_COST_PENCE = 499;
 
-// ─── Build order items and calculate totals ───────────────────────────────
 async function buildOrderItems(
   rawItems: CreateOrderInput['items']
 ): Promise<{ items: OrderItem[]; subtotal: number }> {
@@ -41,13 +40,12 @@ async function buildOrderItems(
   return { items, subtotal };
 }
 
-// ─── Create a new order ───────────────────────────────────────────────────
 export async function createOrder(
   userId: string,
   input: CreateOrderInput
 ): Promise<Order> {
   const { items, subtotal } = await buildOrderItems(input.items);
-  const total = subtotal + SHIPPING_COST_PENCE;
+  const total_price = subtotal + SHIPPING_COST_PENCE;
 
   const { data, error } = await supabaseAdmin
     .from('orders')
@@ -58,9 +56,9 @@ export async function createOrder(
       subtotal,
       shipping_cost: SHIPPING_COST_PENCE,
       discount: 0,
-      total,
-      status: 'pending',
-      payment_status: 'pending',
+      total_price,
+      order_status: 'pending',
+      payment_status: 'unpaid',
       notes: input.notes ?? null,
     })
     .select()
@@ -70,7 +68,6 @@ export async function createOrder(
   return data as Order;
 }
 
-// ─── Fetch all orders for a user ──────────────────────────────────────────
 export async function getOrdersByUser(userId: string): Promise<Order[]> {
   const { data, error } = await supabaseAdmin
     .from('orders')
@@ -81,7 +78,6 @@ export async function getOrdersByUser(userId: string): Promise<Order[]> {
   return data as Order[];
 }
 
-// ─── Fetch a single order (checks ownership) ─────────────────────────────
 export async function getOrderById(
   orderId: string,
   userId?: string
@@ -93,14 +89,17 @@ export async function getOrderById(
   return data as Order;
 }
 
-// ─── Admin: update order status ───────────────────────────────────────────
 export async function updateOrderStatus(
   orderId: string,
   input: UpdateOrderStatusInput
 ): Promise<Order> {
   const { data, error } = await supabaseAdmin
     .from('orders')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update({
+      order_status: input.order_status,
+      tracking_number: input.tracking_number,
+      updated_at: new Date().toISOString(),
+    })
     .eq('id', orderId)
     .select()
     .single();
@@ -108,11 +107,10 @@ export async function updateOrderStatus(
   return data as Order;
 }
 
-// ─── Admin: fetch all orders (paginated) ─────────────────────────────────
 export async function getAllOrders(
   page = 1,
   limit = 20,
-  status?: string
+  orderStatus?: string
 ): Promise<{ orders: Order[]; total: number }> {
   const offset = (page - 1) * limit;
   let query = supabaseAdmin
@@ -121,7 +119,7 @@ export async function getAllOrders(
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (status) query = query.eq('status', status);
+  if (orderStatus) query = query.eq('order_status', orderStatus);
 
   const { data, error, count } = await query;
   if (error) throw new Error(error.message);

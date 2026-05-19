@@ -1,9 +1,8 @@
 -- ─────────────────────────────────────────────────────────────────────────
--- F1 Store — Supabase Schema
+-- F1 Store — Supabase Schema (manual payments only: cod, bkash, nagad, rocket)
 -- Run this in the Supabase SQL editor to set up all tables + RLS policies
 -- ─────────────────────────────────────────────────────────────────────────
 
--- Enable UUID extension
 create extension if not exists "uuid-ossp";
 
 -- ── profiles ──────────────────────────────────────────────────────────────
@@ -18,7 +17,6 @@ create table public.profiles (
   updated_at  timestamptz not null default now()
 );
 
--- Auto-create profile on signup
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer as $$
 begin
@@ -38,7 +36,7 @@ create table public.products (
   name              text not null,
   slug              text not null unique,
   description       text not null default '',
-  price             integer not null check (price > 0),        -- pence
+  price             integer not null check (price > 0),
   compare_at_price  integer,
   category          text not null check (category in (
     'T-Shirts','Hoodies','Joggers','Shorts','Jackets','Full Sleeve Jersey','Accessories'
@@ -67,12 +65,12 @@ create table public.orders (
   subtotal           integer not null,
   shipping_cost      integer not null default 499,
   discount           integer not null default 0,
-  total              integer not null,
-  status             text not null default 'pending' check (status in (
-    'pending','payment_confirmed','processing','shipped','delivered','cancelled','refunded'
+  total_price        integer not null,
+  order_status       text not null default 'pending' check (order_status in (
+    'pending','processing','shipped','delivered'
   )),
-  payment_status     text not null default 'pending' check (payment_status in (
-    'pending','paid','failed','refunded'
+  payment_status     text not null default 'unpaid' check (payment_status in (
+    'unpaid','pending_verification','paid'
   )),
   tracking_number    text,
   notes              text,
@@ -81,9 +79,10 @@ create table public.orders (
 );
 
 create index on public.orders (user_id);
-create index on public.orders (status);
+create index on public.orders (order_status);
+create index on public.orders (payment_status);
 
--- ── payments (manual: cod, bkash, nagad, rocket) ──────────────────────────
+-- ── payments (manual only) ────────────────────────────────────────────────
 create table public.payments (
   id               uuid primary key default uuid_generate_v4(),
   order_id         uuid not null references public.orders (id) on delete cascade,
@@ -100,7 +99,6 @@ create index on public.payments (status);
 
 -- ── Row Level Security ────────────────────────────────────────────────────
 
--- profiles: users can read/update their own profile
 alter table public.profiles enable row level security;
 
 create policy "Users can view own profile"
@@ -109,13 +107,11 @@ create policy "Users can view own profile"
 create policy "Users can update own profile"
   on public.profiles for update using (auth.uid() = id);
 
--- products: everyone can read active products
 alter table public.products enable row level security;
 
 create policy "Anyone can view active products"
   on public.products for select using (is_active = true);
 
--- orders: users can only see their own orders
 alter table public.orders enable row level security;
 
 create policy "Users can view own orders"
@@ -123,3 +119,21 @@ create policy "Users can view own orders"
 
 create policy "Users can create own orders"
   on public.orders for insert with check (auth.uid() = user_id);
+
+alter table public.payments enable row level security;
+
+create policy "Users can view own order payments"
+  on public.payments for select using (
+    exists (
+      select 1 from public.orders o
+      where o.id = payments.order_id and o.user_id = auth.uid()
+    )
+  );
+
+create policy "Users can create payments for own orders"
+  on public.payments for insert with check (
+    exists (
+      select 1 from public.orders o
+      where o.id = payments.order_id and o.user_id = auth.uid()
+    )
+  );
